@@ -1,0 +1,88 @@
+HTML
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Přesný čas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            background-color: #000000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            font-family: monospace, sans-serif;
+        }
+
+        #clock {
+            color: #00FF00;
+            font-size: 2.4vh; /* Velikost zmenšena 0,2x (12vh * 0.2 = 2.4vh) */
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-shadow: 0 0 5px rgba(0, 255, 0, 0.5); /* Jemná záře přizpůsobená menšímu textu */
+        }
+    </style>
+</head>
+<body>
+
+    <div id="clock">--:--:--</div>
+
+    <script>
+        const clockElement = document.getElementById('clock');
+        let timeOffset = 0; // Odchylka lokálního času od serverového v ms
+
+        // Funkce pro získání přesného času ze serveru presnycas.cz
+        async function syncServerTime() {
+            try {
+                const startTime = Date.now();
+                const response = await fetch('https://www.presnycas.cz/api/time');
+                const endTime = Date.now();
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Výpočet zpoždění sítě (network latency / round-trip time)
+                    const roundTripTime = (endTime - startTime) / 2;
+                    const serverTimestamp = data.timestamp + roundTripTime;
+                    
+                    // Výpočet odchylky lokálního času zařízení od serverového času
+                    timeOffset = serverTimestamp - Date.now();
+                }
+            } catch (error) {
+                console.warn('Nepodařilo se synchronizovat se serverem presnycas.cz, používá se lokální čas.', error);
+            }
+        }
+
+        // Funkce pro aktualizaci zobrazení hodin
+        function updateClock() {
+            // Aktuální čas korigovaný o odchylku serveru
+            const now = new Date(Date.now() + timeOffset);
+
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+
+            clockElement.textContent = `${hours}:${minutes}:${seconds}`;
+        }
+
+        // První synchronizace času se serverem
+        syncServerTime();
+
+        // Pravidelná resynchronizace se serverem každých 5 minut
+        setInterval(syncServerTime, 5 * 60 * 1000);
+
+        // Aktualizace zobrazení hodin každou sekundu
+        setInterval(updateClock, 1000);
+        updateClock();
+    </script>
+</body>
+</html>
